@@ -20,7 +20,7 @@ import * as tf from '@tensorflow/tfjs';
 // This is a helper class for loading and managing MNIST data specifically.
 // It is a useful example of how you could create your own data manager class
 // for arbitrary data though. It's worth a look :)
-import {IMAGE_H, IMAGE_W, MnistData} from './data';
+import { IMAGE_H, IMAGE_W, MnistData } from './data';
 
 // This is a helper class for drawing loss graphs and MNIST images to the
 // window. For the purposes of understanding the machine learning bits, you can
@@ -44,6 +44,21 @@ function createConvModel() {
   // black and white images. This input layer uses 16 filters with a kernel size
   // of 5 pixels each. It uses a simple RELU activation function which pretty
   // much just looks like this: __/
+  /**
+   * 第一层：
+   * conv2d 是图像到图像的转换，输入是四维图像张量，输出则也是四维图像张量
+   * 可以看做滤镜 filter，类似于模糊锐化之类的效果
+   * 通过将一个小的像素窗口在输入图像上滑动实现
+   * 这个像素窗口就是【卷积核】，简称为核（kernel）
+   * kernelSize 和 filters 是关键，决定了这个卷积核最终的张量构成
+   * filters 的数量可以看作输出通道数量，输出张量的通道不一定和颜色有关（输入张量的通道代表颜色）
+   * 输出张量表示从训练集习得的输入图像的不同视觉特征
+   * 不同过滤器对图像的不同特征敏感，比如某角落棕色区域敏感
+   * 可以将四维张量[3, 3, 2, 3] 沿着最后一个维度切分为三个独立的三维张量切片
+   * 其中每一个的形状为[3, 3, 2]
+   * 输出图像的宽高比比输入图像的宽高小，小多少取决于 kernelSize
+   * 输出图像的通道数量和输入图像没有必然联系，取决于 filters 的配置
+   */
   model.add(tf.layers.conv2d({
     inputShape: [IMAGE_H, IMAGE_W, 1],
     kernelSize: 3,
@@ -54,23 +69,37 @@ function createConvModel() {
   // After the first layer we include a MaxPooling layer. This acts as a sort of
   // downsampling using max values in a region instead of averaging.
   // https://www.quora.com/What-is-max-pooling-in-convolutional-neural-networks
-  model.add(tf.layers.maxPooling2d({poolSize: 2, strides: 2}));
+  /**
+   * 第二层：
+   * maxPooling2d 也是一种图像到图像的转换
+   * maxPooling2d 比 conv2d 转换更简单，仅仅计算图像区块的最大值并把该值作为输出
+   * 这一过程就叫做最大池化
+   * 作用一：是让 convnet 不易受到关键特征的位置影响，例如识别数字8不管数字在图像的什么位置
+   * 作用二：缩小张量的高和宽，极大减少后续层以及整个 convnet 的计算量
+   */
+  model.add(tf.layers.maxPooling2d({ poolSize: 2, strides: 2 }));
 
   // Our third layer is another convolution, this time with 32 filters.
-  model.add(tf.layers.conv2d({kernelSize: 3, filters: 32, activation: 'relu'}));
+  model.add(tf.layers.conv2d({ kernelSize: 3, filters: 32, activation: 'relu' }));
 
   // Max pooling again.
-  model.add(tf.layers.maxPooling2d({poolSize: 2, strides: 2}));
+  model.add(tf.layers.maxPooling2d({ poolSize: 2, strides: 2 }));
 
   // Add another conv2d layer.
-  model.add(tf.layers.conv2d({kernelSize: 3, filters: 32, activation: 'relu'}));
+  model.add(tf.layers.conv2d({ kernelSize: 3, filters: 32, activation: 'relu' }));
 
   // Now we flatten the output from the 2D filters into a 1D vector to prepare
   // it for input into our last layer. This is common practice when feeding
   // higher dimensional data to a final classification output layer.
+  /**
+   * 扁平化密基层：
+   * 处理之前 conv2d-maxPooling2d 层的输出，然后将结果输入顺序模型后续的层中
+   * 会将多维张量打平成一维张量
+   * 作用是讲输入张量转换为适合后续输入密集层的表示
+   */
   model.add(tf.layers.flatten({}));
 
-  model.add(tf.layers.dense({units: 64, activation: 'relu'}));
+  model.add(tf.layers.dense({ units: 64, activation: 'relu' }));
 
   // Our last layer is a dense layer which has 10 output units, one for each
   // output class (i.e. 0, 1, 2, 3, 4, 5, 6, 7, 8, 9). Here the classes actually
@@ -79,7 +108,7 @@ function createConvModel() {
   // We use the softmax function as the activation for the output layer as it
   // creates a probability distribution over our 10 classes so their output
   // values sum to 1.
-  model.add(tf.layers.dense({units: 10, activation: 'softmax'}));
+  model.add(tf.layers.dense({ units: 10, activation: 'softmax' }));
 
   return model;
 }
@@ -98,9 +127,9 @@ function createConvModel() {
  */
 function createDenseModel() {
   const model = tf.sequential();
-  model.add(tf.layers.flatten({inputShape: [IMAGE_H, IMAGE_W, 1]}));
-  model.add(tf.layers.dense({units: 42, activation: 'relu'}));
-  model.add(tf.layers.dense({units: 10, activation: 'softmax'}));
+  model.add(tf.layers.flatten({ inputShape: [IMAGE_H, IMAGE_W, 1] }));
+  model.add(tf.layers.dense({ units: 42, activation: 'relu' }));
+  model.add(tf.layers.dense({ units: 10, activation: 'softmax' }));
   return model;
 }
 
@@ -172,8 +201,8 @@ async function train(model, onIteration) {
   const testData = data.getTestData();
 
   const totalNumBatches =
-      Math.ceil(trainData.xs.shape[0] * (1 - validationSplit) / batchSize) *
-      trainEpochs;
+    Math.ceil(trainData.xs.shape[0] * (1 - validationSplit) / batchSize) *
+    trainEpochs;
 
   // During the long-running fit() call for model training, we include
   // callbacks, so that we can plot the loss and accuracy values in the page
@@ -187,9 +216,9 @@ async function train(model, onIteration) {
       onBatchEnd: async (batch, logs) => {
         trainBatchCount++;
         ui.logStatus(
-            `Training... (` +
-            `${(trainBatchCount / totalNumBatches * 100).toFixed(1)}%` +
-            ` complete). To stop training, refresh or close page.`);
+          `Training... (` +
+          `${(trainBatchCount / totalNumBatches * 100).toFixed(1)}%` +
+          ` complete). To stop training, refresh or close page.`);
         ui.plotLoss(trainBatchCount, logs.loss, 'train');
         ui.plotAccuracy(trainBatchCount, logs.acc, 'train');
         if (onIteration && batch % 10 === 0) {
@@ -213,8 +242,8 @@ async function train(model, onIteration) {
   const testAccPercent = testResult[1].dataSync()[0] * 100;
   const finalValAccPercent = valAcc * 100;
   ui.logStatus(
-      `Final validation accuracy: ${finalValAccPercent.toFixed(1)}%; ` +
-      `Final test accuracy: ${testAccPercent.toFixed(1)}%`);
+    `Final validation accuracy: ${finalValAccPercent.toFixed(1)}%; ` +
+    `Final test accuracy: ${testAccPercent.toFixed(1)}%`);
 }
 
 /**
